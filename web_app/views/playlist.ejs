@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>歌单 - <%= tag %></title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { 
+            background: #121212; color: white; font-family: 'Segoe UI', sans-serif; padding: 40px; 
+            min-height: 100vh;
+        }
+        .header { display: flex; align-items: center; margin-bottom: 40px; border-bottom: 1px solid #333; padding-bottom: 20px;}
+        .back-btn { color: #aaa; text-decoration: none; font-size: 24px; margin-right: 20px; transition: 0.2s;}
+        .back-btn:hover { color: white; transform: translateX(-5px); }
+        .tag-badge { background: #e94560; padding: 5px 15px; border-radius: 20px; font-size: 14px; vertical-align: middle; margin-left: 10px;}
+        
+        /* 3x5 布局的核心 */
+        .list { 
+            display: grid; 
+            grid-template-columns: repeat(5, 1fr); /* 强制 5 列 */
+            gap: 25px; 
+        }
+        .item { 
+            background: #1e1e1e; padding: 15px; border-radius: 12px; text-decoration: none; color: white; 
+            transition: 0.3s; display: flex; flex-direction: column;
+        }
+        .item:hover { background: #2a2a2a; transform: translateY(-8px); box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
+        .item img { width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 8px; margin-bottom: 12px; }
+        .title { font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px;}
+        .artist { font-size: 13px; color: #888; margin-top: 5px;}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+        <h1 style="margin:0;">精选歌单 <span class="tag-badge"><%= tag %></span></h1>
+    </div>
+    
+    <div class="list">
+        <% songs.forEach(s => { %>
+            <a href="/player/<%= s.song_id %>" class="item">
+                <img src="<%= s.image_url %>" class="spotify-fix"
+                     data-source="<%= s.source %>" data-title="<%= s.title %>" data-artist="<%= s.artist %>"
+                     onerror="this.src='https://y.qq.com/mediastyle/global/img/cover_like.png'">
+                <div class="title"><%= s.title %></div>
+                <div class="artist"><%= s.artist %></div>
+            </a>
+        <% }) %>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            document.querySelectorAll('.spotify-fix').forEach(img => {
+                const src = img.getAttribute('data-source');
+                const title = img.getAttribute('data-title');
+                const artist = img.getAttribute('data-artist');
+                const currentUrl = img.getAttribute('src');
+                if (src === 'spotify' && (!currentUrl || currentUrl.includes('cover_like') || currentUrl === 'null' || currentUrl === '')) {
+                    const query = `title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}`;
+                    fetch(`/api/cover_search?${query}`).then(r=>r.json()).then(d=>{if(d.url) img.src=d.url}).catch(e=>{});
+                }
+            });
+        });
+    </script>
+</body>
+</html>

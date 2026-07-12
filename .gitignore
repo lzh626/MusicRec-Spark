@@ -1,0 +1,7 @@
+node_modules/
+*.jar
+data/raw/
+data/mini_data/
+data/processed/
+spark_tmp/
+.vscode/

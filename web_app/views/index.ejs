@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>音乐推荐 - 用户 <%= userId %></title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; text-align: center; }
+        .song-list { list-style: none; padding: 0; }
+        .song-item { display: flex; align-items: center; border-bottom: 1px solid #eee; padding: 15px 0; }
+        .rank { font-size: 24px; font-weight: bold; color: #e74c3c; width: 50px; text-align: center; }
+        .info { flex-grow: 1; padding-left: 20px; }
+        .title { font-size: 18px; font-weight: bold; color: #2c3e50; }
+        .artist { color: #7f8c8d; font-size: 14px; margin-top: 5px; }
+        .score { font-size: 12px; color: #27ae60; background: #e8f8f5; padding: 2px 8px; border-radius: 10px; display: inline-block; margin-top: 5px;}
+        .cover { width: 60px; height: 60px; background-color: #ddd; border-radius: 4px; object-fit: cover;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎧 为用户 <%= userId %> 推荐的歌单</h1>
+        <p style="text-align: center;"><a href="/">返回首页</a></p>
+        
+	<ul class="song-list">
+	    <% if (songs.length === 0) { %>
+		<li style="text-align: center; padding: 20px;">暂无推荐数据</li>
+	    <% } %>
+
+	    <% songs.forEach(function(song, index) { %>
+		<li class="song-item" style="border-bottom: 1px solid #eee; padding: 15px; display: flex; align-items: flex-start;">
+		    
+		    <!-- 1. 排名 -->
+		    <div class="rank" style="font-size: 24px; color: #e74c3c; width: 40px; margin-right: 15px;"><%= index + 1 %></div>
+
+		    <!-- 2. 封面图 (如果image_url有效则显示，否则显示默认图) -->
+		    <div class="cover-wrapper" style="margin-right: 15px;">
+		        <img src="<%= song.image_url %>" 
+		             style="width: 80px; height: 80px; border-radius: 5px; object-fit: cover; box-shadow: 0 2px 5px rgba(0,0,0,0.2);"
+		             onerror="this.src='https://s4.music.126.net/style/web2/img/default/default_album.jpg'">
+		    </div>
+
+		    <!-- 3. 歌曲信息与播放器 -->
+		    <div class="info" style="flex-grow: 1;">
+		        <div style="font-size: 18px; font-weight: bold; color: #333;"><%= song.title %></div>
+		        <div style="font-size: 14px; color: #666; margin-bottom: 8px;">歌手: <%= song.artist %> | 推荐指数: <%= song.rank_score.toFixed(3) %></div>
+
+		        <!-- 播放器区域 -->
+			<div class="player">
+			    <% if (song.source === 'netease') { %>
+				<!-- 网易云播放器 -->
+				<iframe frameborder="no" border="0" marginwidth="0" marginheight="0" width=330 height=86 
+				    src="//music.163.com/outchain/player?type=2&id=<%= song.original_track_id %>&auto=0&height=66">
+				</iframe>
+				
+			    <% } else if (song.source === 'spotify') { %>
+				<!-- Spotify 播放器 (自带封面) -->
+				<iframe style="border-radius:12px" 
+				    src="https://open.spotify.com/embed/track/<%= song.original_track_id %>?utm_source=generator" 
+				    width="100%" height="80" frameBorder="0" allowfullscreen="" 
+				    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture">
+				</iframe>
+				
+			    <% } else { %>
+				<p>暂无播放源</p>
+			    	<br>
+				<!-- 兜底方案：提供一个去网易云搜索的链接 -->
+				<a href="https://music.163.com/#/search/m/?s=<%= song.title %> <%= song.artist %>" target="_blank" style="font-size: 12px; color: #3498db; text-decoration: none;">
+							    🔗 播放失败？点击去网易云搜这首歌
+				</a>
+			    <% } %>
+			</div>
+
+		    </div>
+		</li>
+	    <% }); %>
+	</ul>
+    </div>
+</body>
+</html>
+
+
+

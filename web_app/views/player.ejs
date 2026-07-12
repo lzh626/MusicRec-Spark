@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title><%= song.title %> - 正在播放</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* ... (CSS 样式保持不变，为了节省篇幅省略，请保留你之前的样式) ... */
+        /* 确保引用了之前的 CSS */
+        body { margin: 0; background: #121212; color: white; font-family: 'Segoe UI', sans-serif; overflow-x: hidden; }
+        .bg-blur { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('<%= song.image_url %>') center/cover no-repeat; filter: blur(40px) brightness(0.4); z-index: -1; transition: background 1s ease;}
+        .layout { display: flex; height: calc(100vh - 100px); padding: 20px 40px; box-sizing: border-box; gap: 40px;}
+        .left-col { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        .cover-container { position: relative; width: 350px; height: 350px; margin-bottom: 30px; }
+        .cover-art { width: 100%; height: 100%; border-radius: 20px; object-fit: cover; box-shadow: 0 15px 40px rgba(0,0,0,0.5); }
+        .btn-like { position: absolute; bottom: 15px; right: 15px; width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.2); backdrop-filter: blur(10px); display: flex; justify-content: center; align-items: center; font-size: 24px; color: white; cursor: pointer; transition: 0.3s; border: none; }
+        .btn-like.liked { color: #ff4757; background: white; }
+        .btn-like:hover { transform: scale(1.1); }
+        .title-area h1 { font-size: 32px; margin: 0 0 10px; }
+        .title-area h2 { font-size: 18px; color: rgba(255,255,255,0.7); margin: 0; font-weight: normal; }
+        .tags { margin-top: 15px; }
+        .tag { font-size: 12px; border: 1px solid rgba(255,255,255,0.3); padding: 4px 10px; border-radius: 12px; color: #ccc; margin: 0 5px;}
+        .right-col { width: 350px; background: rgba(0,0,0,0.3); border-radius: 15px; padding: 20px; overflow-y: auto; backdrop-filter: blur(10px); display: flex; flex-direction: column; gap: 20px;}
+        .section-title { font-size: 14px; color: #aaa; margin-bottom: 10px; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; }
+        .sim-row { display: flex; gap: 10px; padding: 8px; border-radius: 8px; transition: 0.2s; text-decoration: none; color: inherit; align-items: center;}
+        .sim-row:hover { background: rgba(255,255,255,0.1); }
+        .sim-row img { width: 40px; height: 40px; border-radius: 4px; object-fit: cover; } /* 确保图片不变形 */
+        .sim-info { font-size: 13px; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .sim-score { font-size: 10px; color: #31c27c; }
+        .comment-input { width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.1); border: none; padding: 10px; border-radius: 8px; color: white; margin-bottom: 10px; resize: none;}
+        .btn-send { width: 100%; background: #31c27c; border: none; padding: 8px; border-radius: 8px; color: white; cursor: pointer; font-weight: bold;}
+        .comment-list { flex: 1; overflow-y: auto; margin-top: 10px; }
+        .comment-item { font-size: 13px; margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px;}
+        .c-user { color: #888; font-size: 12px; margin-bottom: 3px; }
+        .bottom-bar { position: fixed; bottom: 0; left: 0; width: 100%; height: 90px; background: #181818; border-top: 1px solid #333; z-index: 100; display: flex; align-items: center; justify-content: center; }
+        .top-nav { position: absolute; top: 20px; left: 20px; z-index: 100; }
+        .back-btn { text-decoration: none; color: white; background: rgba(0,0,0,0.5); padding: 8px 15px; border-radius: 20px; font-size: 14px; backdrop-filter: blur(5px);}
+        .back-btn:hover { background: rgba(255,255,255,0.2); }
+        /* 底部跳转按钮特效 */
+        .jump-btn {
+            display: flex; align-items: center; justify-content: center;
+            width: 50px; height: 50px; border-radius: 50%;
+            background: #1db954; /* Spotify 绿 */
+            color: white; text-decoration: none; font-size: 24px;
+            margin-left: 20px; /* 与播放器拉开距离 */
+            box-shadow: 0 0 10px rgba(29, 185, 84, 0.5);
+            transition: 0.3s; animation: pulse 2s infinite;
+        }
+        .jump-btn:hover { transform: scale(1.1); background: #1ed760; }
+        .jump-btn.netease { background: #c20c0c; box-shadow: 0 0 10px rgba(194, 12, 12, 0.5); } /* 网易红 */
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(29, 185, 84, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(29, 185, 84, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(29, 185, 84, 0); }
+        }
+    </style>
+    <style>
+                /* 补充：让侧边栏图片也有个默认占位样式 */
+        .sim-img { background: #333; }
+        
+        /* 评论区样式优化 */
+        .comment-item { animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(10px);} to { opacity:1; transform:translateY(0);} }
+        /* 再次强调：请保留上一版的 CSS，这里补充深色背景适配 */
+        body { margin: 0; background: #121212; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        .bg-blur { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('<%= song.image_url %>') center/cover no-repeat; filter: blur(40px) brightness(0.4); z-index: -1; transition: background 1s ease;}
+        /* ... 其他样式同上个版本 ... */
+        /* ... 略 ... */
+        /* 补一个评论列表容器的高度限制，防止无限长 */
+        .comment-list { flex: 1; overflow-y: auto; margin-top: 10px; max-height: 400px; scrollbar-width: thin; }
+    </style>
+</head>
+<body>
+
+    <div class="bg-blur" id="bg-blur"></div>
+    <div class="top-nav"><a href="/" class="back-btn"><i class="fas fa-home"></i> 回首页</a></div>
+
+    <div class="layout">
+        <!-- 左侧 -->
+        <div class="left-col">
+            <div class="cover-container">
+                <!-- 给主图加 spotify-fix 类 -->
+                <img id="main-cover" src="<%= song.image_url %>" class="cover-art spotify-fix" 
+                     data-source="<%= song.source %>" 
+                     data-title="<%= song.title %>" 
+                     data-artist="<%= song.artist %>"
+                     onerror="this.src='https://y.qq.com/mediastyle/global/img/cover_like.png'">
+                <button class="btn-like <%= isLiked ? 'liked' : '' %>" onclick="toggleLike()"><i class="<%= isLiked ? 'fas' : 'far' %> fa-heart"></i></button>
+            </div>
+            <div class="title-area">
+                <h1><%= song.title %></h1>
+                <h2><%= song.artist %></h2>
+                <div class="tags">
+                    <span class="tag"><%= song.source %></span>
+                    <% if(song.genre && song.genre !== 'Pop') { %> <span class="tag"><%= song.genre %></span> <% } %>
+                </div>
+            </div>
+        </div>
+
+
+         <!-- 右侧 -->
+        <div class="right-col">
+            <!-- 相似歌曲 -->
+            <div>
+                <div class="section-title">✨ 猜你喜欢</div>
+                <% simSongs.forEach(function(s) { %>
+                    <a href="/player/<%= s.song_id %>" class="sim-row">
+                        <!-- 【关键】给侧边栏图片也加上 class="spotify-fix" 和 data 属性 -->
+                        <img src="<%= s.image_url %>" class="spotify-fix" 
+                             data-source="<%= s.source %>"
+                             data-title="<%= s.title %>"
+                             data-artist="<%= s.artist %>"
+                             onerror="this.src='https://y.qq.com/mediastyle/global/img/cover_like.png'">
+                        <div class="sim-info">
+                            <div><%= s.title %></div>
+                            <div style="color:#888;"><%= s.artist %></div>
+                        </div>
+                        <div class="sim-score"><%= (s.similarity_score * 100).toFixed(0) %>%</div>
+                    </a>
+                <% }); %>
+            </div>
+
+            <!-- 评论区 -->
+            <div style="margin-top: 20px; display: flex; flex-direction: column; flex: 1;">
+                <div class="section-title">💬 乐评 (<span id="comment-count"><%= comments.length %></span>)</div>
+                <div class="comment-list" id="comment-list">
+                    <% comments.forEach(function(c) { %>
+                        <div class="comment-item">
+                            <div class="c-user"><%= c.username %> · <%= new Date(c.created_at).toLocaleDateString() %></div>
+                            <div><%= c.content %></div>
+                        </div>
+                    <% }); %>
+                </div>
+                <div style="margin-top: 10px;">
+                    <textarea class="comment-input" id="comment-text" rows="2" placeholder="写下你的听后感..."></textarea>
+                    <button class="btn-send" onclick="postComment()">发布评论 </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 底部播放器 -->
+    <div class="bottom-bar">
+        <div class="player-container">
+            <% if (song.source === 'netease' || !song.source) { %>
+                <iframe frameborder="no" border="0" marginwidth="0" marginheight="0" width="100%" height="86" src="//music.163.com/outchain/player?type=2&id=<%= song.original_track_id %>&auto=1&height=66"></iframe>
+            <% } else { %>
+                <iframe style="border-radius:12px" src="https://open.spotify.com/embed/track/<%= song.original_track_id %>?utm_source=generator" width="100%" height="80" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
+            <% } %>
+        </div>
+
+        <!-- 【新增】显眼的跳转按钮 -->
+        <% if (song.source === 'spotify') { %>
+            <a href="https://open.spotify.com/track/<%= song.original_track_id %>" target="_blank" class="jump-btn" title="去 Spotify 播放">
+                <i class="fab fa-spotify"></i>
+            </a>
+        <% } else { %>
+            <a href="https://music.163.com/#/song?id=<%= song.original_track_id %>" target="_blank" class="jump-btn netease" title="去网易云播放">
+                <i class="fas fa-external-link-alt"></i>
+            </a>
+        <% } %>
+    </div>
+
+
+    <script>
+        const songId = "<%= song.song_id %>";
+        const currentUser = "<%= user.username %>"; // 从后端传来的当前用户名
+
+        // ================= 1. 图片批量修复脚本 =================
+        // 遍历页面上所有标记了 spotify-fix 的图片
+        document.querySelectorAll('.spotify-fix').forEach(img => {
+            const src = img.getAttribute('data-source');
+            const title = img.getAttribute('data-title');
+            const artist = img.getAttribute('data-artist');
+            const currentUrl = img.getAttribute('src');
+
+            // 如果是 Spotify 且 URL 为空或无效
+            if (src === 'spotify' && (!currentUrl || currentUrl.length < 10)) {
+                // 使用 iTunes API 搜索封面
+                const query = `title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}`;
+                fetch(`/api/cover_search?${query}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.url) {
+                            img.src = data.url;
+                            // 如果是主图，同时更新背景
+                            if (img.id === 'main-cover') {
+                                document.getElementById('bg-blur').style.backgroundImage = `url('${data.url}')`;
+                            }
+                        }
+                    }).catch(e => {}); // 忽略错误，保持默认图
+            }
+        });
+
+        // 2. 【修改】页面停留 10秒 后才算听过
+        setTimeout(() => {
+            fetch('/api/log_action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ songId: songId, actionType: 'play' })
+            }).then(res => console.log('Played logged (10s)'));
+        }, 8000); // <--- 听过判定时长:
+
+        // 3. 点赞逻辑
+        function toggleLike() {
+            const btn = document.querySelector('.btn-like');
+            const isLiked = btn.classList.contains('liked');
+            const action = isLiked ? 'unlike' : 'like';
+            
+            fetch('/api/log_action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ songId: songId, actionType: action })
+            }).then(res => {
+                btn.classList.toggle('liked');
+                const icon = btn.querySelector('i');
+                icon.classList.toggle('fas');
+                icon.classList.toggle('far');
+            });
+        }
+
+        // 4. 评论逻辑
+        function postComment() {
+            const text = document.getElementById('comment-text').value;
+            if(!text) return;
+            
+            fetch('/api/log_action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ songId: songId, actionType: 'comment', content: text })
+            }).then(res => res.json()).then(data => {
+                if(data.success) {
+                    // 1. 清空输入框
+                    document.getElementById('comment-text').value = '';
+                    // 2. 动态插入新评论到列表顶部
+                    const list = document.getElementById('comment-list');
+                    const newComment = document.createElement('div');
+                    newComment.className = 'comment-item';
+                    newComment.innerHTML = `
+                        <div class="c-user">${currentUser} · 刚刚</div>
+                        <div>${text}</div>
+                    `;
+                    list.prepend(newComment);
+                    // 3. 更新计数
+                    const countSpan = document.getElementById('comment-count');
+                    countSpan.innerText = parseInt(countSpan.innerText) + 1;
+                }
+            });
+        }
+    </script>
+</body>
+</html>

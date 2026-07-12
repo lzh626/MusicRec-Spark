@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Music waiting for You... - 探索</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* 深色动态背景 */
+        body { 
+            font-family: 'Segoe UI', sans-serif; margin: 0; padding-bottom: 60px; 
+            background: linear-gradient(-45deg, #1a1a2e, #16213e, #0f3460, #533483);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+            color: white; overflow-x: hidden;
+        }
+        @keyframes gradient { 0% {background-position:0% 50%} 50% {background-position:100% 50%} 100% {background-position:0% 50%} }
+
+        .header { background: rgba(0,0,0,0.2); padding: 15px 50px; display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .logo { font-size: 24px; font-weight: bold; color: white; display: flex; align-items: center; gap: 10px;}
+        .nav-user a { color: rgba(255,255,255,0.8); text-decoration: none; margin-left: 20px; font-weight: bold; transition: 0.3s; }
+        .nav-user a:hover { color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
+
+        .container { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
+        
+        /* ============ 1. 云朵浮动标签 ============ */
+        .cloud-section { text-align: center; margin-bottom: 60px; padding: 20px; }
+        .cloud-title { font-size: 24px; margin-bottom: 30px; font-weight: 300; letter-spacing: 2px; text-transform: uppercase; opacity: 0.9; }
+        
+        .tags-container { 
+            display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; 
+            perspective: 1000px; 
+        }
+        
+        .cloud-tag {
+            display: inline-block; padding: 15px 35px; color: #333; font-weight: bold; text-decoration: none;
+            background: rgba(255, 255, 255, 0.9);
+            /* 不规则轮廓 */
+            border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+            box-shadow: inset 10px 10px 20px rgba(0,0,0,0.05), 5px 10px 15px rgba(0,0,0,0.2);
+            transition: all 0.4s ease;
+            animation: float 6s ease-in-out infinite;
+            position: relative;
+        }
+
+        /* 特殊：让“听你想听”标签始终单行居中显示 */
+        .full-line-center { width: 100%; text-align: center; margin-bottom: 10px; }
+        .full-line-center .cloud-tag { white-space: nowrap; display: inline-block; }
+        
+        /* 随机化浮动延迟，制造错落感 */
+        .cloud-tag:nth-child(2n) { animation-delay: 1s; border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; background: #e0f7fa; }
+        .cloud-tag:nth-child(3n) { animation-delay: 2s; border-radius: 70% 30% 30% 70% / 60% 40% 60% 40%; background: #f3e5f5; }
+        .cloud-tag:nth-child(4n) { animation-delay: 0.5s; background: #fffde7; }
+
+        .cloud-tag:hover { 
+            transform: scale(1.1) rotate(5deg); 
+            box-shadow: 0 0 20px rgba(255,255,255,0.6); 
+            z-index: 10; background: white;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        /* ============ 2. 3x3 3D热歌矩阵 ============ */
+        .section-title { font-size: 28px; font-weight: bold; margin-bottom: 30px; display: flex; align-items: center; gap: 10px; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+        .section-title::before { content: ''; width: 6px; height: 30px; background: #e94560; display: block; border-radius: 3px; }
+
+        .hot-grid {
+            display: grid; 
+            /* 中间列宽一点 (1.3倍) */
+            grid-template-columns: 1fr 1.3fr 1fr; 
+            gap: 15px; 
+            margin-bottom: 80px;
+            perspective: 1200px; /* 开启3D透视 */
+        }
+
+        .hot-card {
+            position: relative; border-radius: 12px; overflow: hidden;
+            text-decoration: none; color: white; transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            background: rgba(255,255,255,0.05);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            display: flex; flex-direction: column;
+        }
+
+        .hot-img { width: 100%; height: 160px; object-fit: cover; filter: brightness(0.9); transition: 0.4s; }
+        .hot-info { padding: 15px; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); position: absolute; bottom: 0; width: 100%; box-sizing: border-box;}
+        
+        /* === 3D 布局逻辑 === */
+        
+        /* 左侧列 (第1, 4, 7个元素) */
+        .hot-card:nth-child(3n+1) {
+            transform: rotateY(20deg) scale(0.9);
+            transform-origin: right center;
+            opacity: 0.8;
+            border-right: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        /* 中间列 (第2, 5, 8个元素) */
+        .hot-card:nth-child(3n+2) {
+            transform: translateZ(20px) scale(1.05); /* 向前突起 */
+            z-index: 10;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        /* 右侧列 (第3, 6, 9个元素) */
+        .hot-card:nth-child(3n+3) {
+            transform: rotateY(-20deg) scale(0.9);
+            transform-origin: left center;
+            opacity: 0.8;
+            border-left: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* 悬停交互：鼠标放上去时，当前卡片变正、变亮 */
+        .hot-card:hover {
+            transform: rotateY(0deg) scale(1.1) translateZ(50px);
+            opacity: 1; z-index: 20;
+            box-shadow: 0 0 30px rgba(233, 69, 96, 0.4);
+            outline: 2px solid rgba(255,255,255,0.5);
+        }
+        .hot-card:hover .hot-img { filter: brightness(1.1); }
+
+        /* ============ 3. 全球趋势 (样式区分) ============ */
+        /* 修改 .trend-scroll 及其滚动条样式 */
+        .trend-scroll { 
+            display: flex; overflow-x: auto; gap: 25px; padding: 20px 0 40px 0;
+            /* 移除 scrollbar-width: thin; 让它恢复默认粗细，或者自定义如下 */
+        }
+
+        /* Webkit 浏览器 (Chrome/Edge/Safari) 自定义滚动条 */
+        .trend-scroll::-webkit-scrollbar {
+            height: 12px; /* 【修改这里】高度加大，原本可能是 6px */
+        }
+
+        .trend-scroll::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1); 
+            border-radius: 6px;
+        }
+
+        .trend-scroll::-webkit-scrollbar-thumb {
+            background: #e94560; /* 【修改这里】改成显眼的颜色 */
+            border-radius: 6px;
+            border: 2px solid rgba(0,0,0,0.2); /* 增加一点立体感 */
+        }
+
+        .trend-scroll::-webkit-scrollbar-thumb:hover {
+            background: #ff6b81;
+        }
+        .trend-card {
+            min-width: 180px; text-decoration: none; color: white; position: relative;
+            transition: 0.3s;
+        }
+        /* 圆形样式，区别于上面的方形 */
+        .trend-img { 
+            width: 180px; height: 180px; border-radius: 50%; object-fit: cover; 
+            border: 4px solid rgba(255,255,255,0.1); transition: 0.3s;
+            animation: spin-slow 20s linear infinite paused; /* 默认暂停，hover旋转 */
+        }
+        .trend-card:hover .trend-img { 
+            border-color: #e94560; transform: scale(1.05); 
+            box-shadow: 0 0 20px rgba(233, 69, 96, 0.5);
+            animation-play-state: running; 
+        }
+        @keyframes spin-slow { 100% { transform: rotate(360deg) scale(1.05); } }
+        
+        .trend-info { text-align: center; margin-top: 15px; }
+        .trend-title { font-weight: bold; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 180px; }
+        
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo"><i class="fas fa-compact-disc fa-spin"></i> Music waiting for You...</div>
+        <div class="nav-user">
+            <a href="/profile"><i class="fas fa-user"></i> <%= user ? user.username : 'Guest' %></a>
+            <a href="/logout">退出</a>
+        </div>
+    </div>
+
+    <div class="container">
+        
+        <!-- 1. 云朵浮动标签 -->
+        <div class="cloud-section">
+            <div class="cloud-title">探索你的音乐宇宙</div>
+            <div class="tags-container">
+                <div class="full-line-center">
+                    <a href="/recommend" class="cloud-tag special" style="background: #e94560; color: white;">📅 听你想听——每日专属推荐</a>
+                </div>
+                <% ['流行 Pop', '摇滚 Rock', '民谣 Folk', '电子 Electronic', '嘻哈 Hip-Hop', '深夜 EMO', '运动 Workout', '学习 Study', '驾车 Drive', '聚会 Party', '放松 Chill', '经典 Classic'].forEach(tag => { %>
+                    <a href="/playlist/<%= tag %>" class="cloud-tag"><%= tag %></a>
+                <% }); %>
+            </div>
+        </div>
+
+        <!-- 2. 全网热歌 (3x3 3D布局) -->
+        <div class="section-title">🔥 全网热歌</div>
+        <div class="hot-grid">
+            <% hotSongs.forEach(function(song) { %>
+                <a href="/player/<%= song.song_id %>" class="hot-card">
+                    <!-- spotify-fix class 用于自动补图 -->
+                    <img src="<%= song.image_url %>" class="hot-img spotify-fix" 
+                         data-source="<%= song.source %>" 
+                         data-title="<%= song.title %>" 
+                         data-artist="<%= song.artist %>"
+                         onerror="this.src='https://y.qq.com/mediastyle/global/img/cover_like.png'">
+                    <div class="hot-info">
+                        <div style="font-weight:bold; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><%= song.title %></div>
+                        <div style="font-size:12px; color:rgba(255,255,255,0.7);"><%= song.artist %></div>
+                    </div>
+                </a>
+            <% }); %>
+        </div>
+
+        <!-- 3. 全球趋势 (圆形样式) -->
+        <div class="section-title">🌍 全球趋势</div>
+        <div class="trend-scroll">
+            <% newSongs.forEach(function(song) { %>
+                <a href="/player/<%= song.song_id %>" class="trend-card">
+                    <img src="<%= song.image_url %>" class="trend-img spotify-fix"
+                         data-source="<%= song.source %>" 
+                         data-title="<%= song.title %>" 
+                         data-artist="<%= song.artist %>"
+                         onerror="this.src='https://y.qq.com/mediastyle/global/img/cover_like.png'">
+                    <div class="trend-info">
+                        <div class="trend-title"><%= song.title %></div>
+                        <div style="font-size:12px; color:#aaa;"><%= song.artist %></div>
+                    </div>
+                </a>
+            <% }); %>
+        </div>
+
+    </div>
+
+    <!-- 统一的 Spotify 图片修复脚本 (iTunes API) -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const images = document.querySelectorAll('.spotify-fix');
+            console.log(`正在检查 ${images.length} 张图片...`);
+
+            images.forEach(img => {
+                const src = img.getAttribute('data-source');
+                const title = img.getAttribute('data-title');
+                const artist = img.getAttribute('data-artist');
+                const currentUrl = img.getAttribute('src');
+
+                // 只有当来源是 spotify 且 url 为空或 placeholder 时才请求
+                if (src === 'spotify' && (!currentUrl || currentUrl.includes('cover_like') || currentUrl === 'null' || currentUrl.trim() === '')) {
+                    
+                    const query = `title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}`;
+                    
+                    // 使用 fetch 请求后端代理接口 (避免跨域)
+                    fetch(`/api/cover_search?${query}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.url) {
+                                img.src = data.url;
+                                // 淡入效果
+                                img.style.opacity = 0;
+                                img.onload = () => { img.style.opacity = 1; }
+                            }
+                        })
+                        .catch(e => { /* 忽略错误 */ });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

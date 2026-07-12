@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>相似歌曲 - <%= baseSong.title %></title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #222; color: white; padding: 40px; }
+        .header { text-align: center; margin-bottom: 40px; }
+        .base-cover { width: 150px; height: 150px; border-radius: 50%; box-shadow: 0 0 30px rgba(49, 194, 124, 0.4); border: 5px solid #31c27c; }
+        h1 { margin: 20px 0 5px; }
+        .subtitle { color: #888; }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 30px; max-width: 1000px; margin: 0 auto; }
+        .card { background: #333; border-radius: 10px; overflow: hidden; position: relative; }
+        .card img { width: 100%; height: 200px; object-fit: cover; opacity: 0.8; transition: 0.3s; }
+        .card:hover img { opacity: 1; transform: scale(1.05); }
+        .card-info { padding: 15px; }
+        .card-title { font-weight: bold; margin-bottom: 5px; }
+        .card-artist { font-size: 12px; color: #aaa; }
+        .similarity { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); padding: 4px 8px; border-radius: 4px; font-size: 12px; color: #31c27c; font-weight: bold; border: 1px solid #31c27c;}
+    </style>
+</head>
+<body>
+    <div style="margin-bottom: 20px;"><a href="javascript:history.back()" style="color: #999; text-decoration: none;">&larr; 返回</a></div>
+
+    <div class="header">
+        <img src="<%= baseSong.image_url %>" class="base-cover" onerror="this.src='https://y.qq.com/mediastyle/global/img/cover_like.png'">
+        <h1><%= baseSong.title %></h1>
+        <div class="subtitle">歌手：<%= baseSong.artist %></div>
+        <p style="color: #31c27c; margin-top: 10px;">基于内容特征 (LSH) 为您找到的相似歌曲</p>
+    </div>
+
+    <div class="grid">
+        <% if (simSongs.length === 0) { %>
+            <p style="text-align: center; width: 100%;">暂无相似数据，请检查 related_songs 表是否填充。</p>
+        <% } %>
+
+        <% simSongs.forEach(function(song) { %>
+            <div class="card">
+                <img src="<%= song.image_url %>" onerror="this.src='https://y.qq.com/mediastyle/global/img/cover_like.png'">
+                <div class="similarity">相似度 <%= (song.similarity_score * 100).toFixed(0) %>%</div>
+                <div class="card-info">
+                    <div class="card-title"><%= song.title %></div>
+                    <div class="card-artist"><%= song.artist %></div>
+                    
+                    <div style="margin-top: 10px;">
+                        <% if (song.source === 'netease' || !song.source) { %>
+                            <iframe frameborder="no" border="0" marginwidth="0" marginheight="0" width="100%" height=52 
+                            src="//music.163.com/outchain/player?type=2&id=<%= song.original_track_id %>&auto=0&height=32"></iframe>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        <% }); %>
+    </div>
+</body>
+</html>
