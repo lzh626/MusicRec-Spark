@@ -13,8 +13,8 @@ PAGES_PER_RUN = 5
 STATE_FILE = 'spider_state.txt'
 
 # 输出文件路径
-FILE_META = 'processed/tracks_meta_final.csv'
-FILE_INTERACT = 'processed/interactions_final.csv'
+FILE_META = 'processed/netease/tracks_meta_final.csv'
+FILE_INTERACT = 'processed/netease/interactions_final.csv'
 
 # User-Agent 池
 USER_AGENTS = [
