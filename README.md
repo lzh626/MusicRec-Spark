@@ -2,6 +2,10 @@
 
 ![Spark](https://img.shields.io/badge/Spark-3.5.0-orange.svg) ![Node.js](https://img.shields.io/badge/Node.js-Express-green.svg) ![MySQL](https://img.shields.io/badge/MySQL-8.0-blue.svg) ![License](https://img.shields.io/badge/License-MIT-brightgreen.svg)
 
+
+
+
+
 ## 📖 项目简介
 本项目是一个**端到端的大数据音乐推荐平台**，旨在解决海量音乐数据下的“信息过载”与单一数据源导致的“推荐茧房”问题。
 
@@ -76,6 +80,12 @@ MusicRecSystem/
 ---
 
 ## 🚀 快速启动
+
+###  使用docker 快速部署
+
+
+
+
 
 **环境依赖**：Java 8+, Hadoop 3.x, Spark 3.x, MySQL 8.x, Node.js v18+
 
