@@ -81,6 +81,12 @@ MusicRecSystem/
 
 ## 🚀 快速启动
 
+数据集
+spotify:
+https://www.kaggle.com/datasets/undefinenull/million-song-dataset-spotify-lastfm
+
+
+
 ###  使用docker 快速部署
 
 
