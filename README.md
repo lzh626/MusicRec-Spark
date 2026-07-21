@@ -1,85 +1,110 @@
-# 🎧 MusicRec-Spark: 基于大数据与多源融合的音乐推荐系统
+# 🎧 MusicRec-Spark: 基于Spark ALS与内容相似度融合音乐推荐系统
 
-![Spark](https://img.shields.io/badge/Spark-3.5.0-orange.svg) ![Node.js](https://img.shields.io/badge/Node.js-Express-green.svg) ![MySQL](https://img.shields.io/badge/MySQL-8.0-blue.svg) ![License](https://img.shields.io/badge/License-MIT-brightgreen.svg)
 
 
 
 
 
 ## 📖 项目简介
-本项目是一个**端到端的大数据音乐推荐平台**，旨在解决海量音乐数据下的“信息过载”与单一数据源导致的“推荐茧房”问题。
+本项目是课程级**离线大数据音乐推荐全栈系统**，基于Ubuntu伪分布式Hadoop+Spark搭建数据处理流水线。
+1. 数据源：网易云爬虫中文歌单数据集 + Last.fm/Spotify英文公开数据集；
+2. 双推荐算法：
+   - ALS协同过滤：基于用户播放隐式反馈生成个性化推荐；
+   - ALS物品隐向量LSH相似度计算：实现“相似歌曲”内容推荐；
+3. 完整链路：Scrapy采集→Pandas ETL清洗→HDFS存储→Spark分布式训练→MySQL存储推荐结果→Node.js网页可视化展示；
+4. 解决冷启动、数据笛卡尔积爆炸、JDBC写入慢、跨域播放等工程问题。
 
-项目采用经典的 **Lambda 架构变体**，创新性地实现了 **Spotify (全球版权) + 网易云音乐 (华语版权)** 的双源异构数据融合。通过 Apache Spark 分布式计算引擎，结合 **ALS (交替最小二乘法)** 与 **LSH (局部敏感哈希)** 双塔算法，为用户提供“千人千面”的个性化推荐与沉浸式的 Web 播放体验。
+## ✨ 核心功能
+1. 数据采集：定向爬虫抓取网易歌曲ID、封面、歌手元数据；
+2. 离线ETL：统一字段、去重、空值清洗，输出标准化CSV上传HDFS；
+3. 分布式推荐计算：Spark MLlib ALS训练用户偏好向量，LSH计算歌曲相似度；
+4. 数据持久化：歌曲库、个性化推荐、相似歌曲三张业务表入库MySQL；
+5. Web前端：用户专属推荐页、歌曲详情相似推荐、网易内嵌播放器展示封面。
 
-### ✨ 目前已实现的核心效果
-1. **多源数据融合与自动对齐**：成功打通中英双语库，级联过滤清洗僵尸数据，提纯出近万首高质量曲库与数百万条交互记录。
-2. **双塔推荐引擎落地**：
-   * **精准日推 (ALS)**：基于隐式反馈（播放次数）降维提取用户偏好，生成个性化推荐。
-   * **高维相似度计算 (LSH)**：提取物品隐向量进行 ANN 检索，实现了精准的“猜你喜欢”。
-3. **全栈业务闭环与极致 UI**：
-   * 采用深色磨砂玻璃拟态风格，实现 3D 矩阵布局的响应式界面。
-   * 智能切换跨平台外链播放器，并通过 **iTunes API 代理** 实现了缺失专辑封面的 100% 自动补全。
-   * 搭建完整的用户体系（注册、登录、收藏、评论），并通过 **Shadow ID 映射机制** 优雅解决了新用户的冷启动问题。
+## 🛠️ 技术栈 & 参考文档
+- 分布式计算：Apache Spark 3.5 PySpark MLlib [官方ALS文档](https://spark.apache.org/docs/latest/ml-collaborative-filtering.html)
+- 存储：Hadoop HDFS（伪分布式）、MySQL8.0
+- 数据处理：Python Pandas、Scrapy爬虫
+- Web后端：Node.js Express [Express路由文档](https://expressjs.com/en/guide/routing.html)
+- 前端：EJS模板、原生HTML/CSS、网易iframe播放器
 
----
-
-## 🛠️ 核心技术栈与学习资源
-
-* **大数据计算**：Apache Spark (PySpark), MLlib 
-  * *回顾学习*：[Spark MLlib Collaborative Filtering 官方文档](https://spark.apache.org/docs/latest/ml-collaborative-filtering.html)
-* **数据存储**：Hadoop HDFS (数据湖), MySQL 8.0 (业务库)
-* **数据工程**：Python (Requests, BeautifulSoup, Pandas)
-* **后端服务**：Node.js (Express framework), JDBC
-  * *回顾学习*：[Express.js 路由与中间件指南](https://expressjs.com/en/guide/routing.html)
-* **前端视图**：EJS 模板引擎, CSS3 (3D Transforms, Flex/Grid), Vanilla JS
-
----
-
-## 📂 项目结构规划
-
+## 📂 项目目录结构
 ```text
 MusicRecSystem/
-├── data/                         # 数据采集与预处理层
-│   ├── spider_music163_2.py      # 网易云 API 逆向爬虫 (带随机UA与动态延时防封)
-│   ├── shrink_data.py            # Spotify 百万数据集下采样与清洗工具
-│   ├── processed/                # 融合清洗后的 CSV 数据，待上传 HDFS
-│   └── sql/update.sql            # MySQL 业务表结构初始化脚本
-│
-├── spark_engine/                 # 核心计算引擎层
-│   ├── train_fusion_optimized.py # 【核心】双源融合、ALS训练、LSH批处理计算主脚本
-│   ├── train_fusion_optimized_mini.py # 降采样测试脚本 (用于快速验证逻辑)
-│   └── mysql-connector.jar       # Spark JDBC 依赖
-│
-└── web_app/                      # 表现层与业务服务层
-    ├── app.js                    # Node.js 后端入口 (处理路由、API代理、Session鉴权)
-    └── views/                    # EJS 前端页面
-        ├── home.ejs              # 首页 (3D 视觉热歌矩阵、云朵浮动标签)
-        ├── player.ejs            # 全屏沉浸式播放页 (封面自动补全、评论/收藏交互)
-        ├── profile.ejs           # 个人中心 (播放历史记录、管理数据)
-        ├── recommend.ejs         # 专属每日推荐页 (前端分页与随机刷新)
-        ├── playlist.ejs          # 场景化歌单展示页
-        └── login.ejs / register.ejs # 用户认证体系
+├── data/
+│   ├── raw/              # 原始下载/爬虫CSV数据
+│   ├── processed/        # ETL清洗后待上传HDFS文件
+│   ├── spider_music163.py# 网易云歌曲爬虫
+│   └── sql/init.sql     # MySQL建表脚本
+├── etl/
+│   └── etl_script.py    # Pandas数据清洗脚本
+├── spark_engine/
+│   ├── mysql-connector.jar # MySQL JDBC驱动
+│   ├── train_fusion_optimized.py # 核心融合训练脚本(ALS+LSH)
+│   └── train_model.py    # 简易单数据集测试脚本
+├── web_app/
+│   ├── app.js            # Express后端服务
+│   ├── package.json      # Node依赖配置
+│   └── views/            # EJS前端页面
+│       ├── index.ejs     # 用户推荐主页
+│       └── detail.ejs    # 歌曲相似推荐页
+├── docs/                 # 截图、报告素材
+├── docker/               # 【待补充】Docker配置空目录
+└── README.md
 ```
 
----
+## ⚙️ 前置环境依赖
+JDK8、Hadoop伪分布式、Spark3.5、MySQL8.0、Python3、Node.js16+
 
-## ⚙️ 核心技术难点与工程优化 (Troubleshooting)
+## 🐳 Docker部署（预留配置区）
+> 此处Dockerfile、docker-compose.yml待完善，后续补充镜像构建、容器一键启动脚本
 
-本项目在开发过程中克服了多个工业级场景下的典型痛点：
+## 🚀 完整复现步骤
+### 1. 初始化MySQL数据库
+```bash
+mysql -u root -p
+source /home/hadoop/Desktop/MusicRecSystem/data/sql/init.sql;
+```
 
-1. **分布式计算的 OOM (内存溢出) 危机**：
-   * *挑战*：在计算 LSH 歌曲相似度时，全量自连接（Self Join）导致产生超 3000万条笛卡尔积数据，撑爆本地虚拟机磁盘与内存。
-   * *优化*：引入 **Batch Processing (分批计算)** 机制，将特征向量切分为 5 份并行计算；同时引入 Spark SQL 的 **Window 窗口函数** 进行 Top-5 强制截断，将结果集从 3000万行压缩至 5万行内，彻底解决空间爆炸问题。
-2. **跨域限制与视觉残缺**：
-   * *挑战*：Spotify 数据集缺失封面 URL，且由于 GFW 与 CORS 限制，前端无法直接请求图片。
-   * *优化*：在 Node.js 中搭建 `/api/cover_search` 代理层，引入无需鉴权的 **iTunes Search API**。前端 JS 并发检测缺失封面的 DOM 节点，通过“歌名+歌手”精准匹配，实现动态无缝补全。
-3. **数据库并发写入瓶颈**：
-   * *挑战*：Spark 计算产出的百万级结果写入 MySQL 耗时过长。
-   * *优化*：配置 JDBC `rewriteBatchedStatements=true` 与 `batchsize` 参数，实现了写入性能 10 倍以上的提升。
+### 2. 数据采集与ETL清洗
+```bash
+# 1. 运行爬虫获取中文歌曲数据
+cd data
+python3 spider_music163.py
+# 2. Pandas清洗原始数据
+cd etl
+python3 etl_script.py
+# 3. 上传清洗文件至HDFS
+hdfs dfs -rm -r /input
+hdfs dfs -mkdir /input
+hdfs dfs -put ../data/processed/*.csv /input
+# 查看HDFS文件
+hdfs dfs -ls /input
+```
 
----
+### 3. Hadoop/HDFS启停指令
+```bash
+# 启动HDFS
+/usr/local/hadoop/sbin/start-dfs.sh
+# 关闭HDFS
+/usr/local/hadoop/sbin/stop-dfs.sh
+# 退出HDFS安全模式
+hdfs dfsadmin -safemode leave
+# 清理HDFS回收站释放磁盘
+hdfs dfs -rm -r -skipTrash /user/hadoop/.Trash
+```
 
-## 🚀 快速启动
+### 4. Spark模型训练（核心）
+```bash
+cd spark_engine
+# 完整融合训练脚本（4G内存分配）
+spark-submit \
+--driver-class-path mysql-connector.jar \
+--jars mysql-connector.jar \
+--driver-memory 4g \
+--executor-memory 4g \
+train_fusion_optimized.py
+```
 
 数据集
 spotify:
@@ -88,24 +113,21 @@ https://www.kaggle.com/datasets/undefinenull/million-song-dataset-spotify-lastfm
 
 
 ###  使用docker 快速部署
+### 5. 启动Node前端网页服务
+```bash
+cd web_app
+# 安装依赖
+npm install
+# 启动服务，访问http://localhost:3000
+node app.js
+```
 
+## 📚 公开数据集下载地址
+1. Last.fm / Spotify英文交互数据集：https://www.kaggle.com/datasets/undefinenull/million-song-dataset-spotify-lastfm
+2. 网易云中文歌单数据：爬虫脚本自行抓取（本项目spider_music163.py）
 
-
-
-
-**环境依赖**：Java 8+, Hadoop 3.x, Spark 3.x, MySQL 8.x, Node.js v18+
-
-1. **数据库初始化**：执行 `data/sql/update.sql` 创建业务表。
-2. **数据就绪**：运行 `data/` 下的 Python 脚本生成 CSV，并上传至 HDFS 的 `/input/netease` 与 `/input/spotify` 目录下。
-3. **模型训练**：
-   ```bash
-   cd spark_engine
-   spark-submit --driver-class-path mysql-connector.jar --jars mysql-connector.jar --driver-memory 4g train_fusion_optimized.py
-   ```
-4. **启动服务**：
-   ```bash
-   cd web_app
-   npm install
-   node app.js
-   ```
-5. **访问**：打开浏览器访问 `http://localhost:3000`
+## ⚠️ 常见问题优化说明
+1. LSH相似度计算产生千万级数据：使用Window函数TOP5截断，限制单首歌曲仅保留5个相似结果；
+2. MySQL写入缓慢：JDBC链接添加rewriteBatchedStatements=true，批量写入；
+3. Spark找不到JDBC：spark-submit携带--jars指定jar包路径；
+4. 磁盘空间不足：定期清空HDFS回收站、MySQL TRUNCATE无用大表。
