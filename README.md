@@ -32,12 +32,12 @@
 ```text
 MusicRecSystem/
 ├── data/
+├── ├── etl/
+├── │   └── etl_spotify.py    # Pandas数据清洗脚本
 │   ├── raw/              # 原始下载/爬虫CSV数据
 │   ├── processed/        # ETL清洗后待上传HDFS文件
 │   ├── spider_music163.py# 网易云歌曲爬虫
 │   └── sql/init.sql     # MySQL建表脚本
-├── etl/
-│   └── etl_script.py    # Pandas数据清洗脚本
 ├── spark_engine/
 │   ├── mysql-connector.jar # MySQL JDBC驱动
 │   ├── train_fusion_optimized.py # 核心融合训练脚本(ALS+LSH)
