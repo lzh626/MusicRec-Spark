@@ -1,0 +1,7 @@
+node_modules/
+.vscode/
+data/raw/
+data/mini_data/
+data/processed/
+spark_engine/*.jar
+host_backup/

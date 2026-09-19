@@ -7,7 +7,7 @@ INPUT_INTER_PATH = "processed/spotify/interactions.csv"
 INPUT_META_PATH = "processed/spotify/tracks_meta.csv"
 
 # 输出路径
-OUT_DIR = "mini_data"
+OUT_DIR = "processed_mini"
 # =======================================
 
 os.makedirs(OUT_DIR, exist_ok=True)

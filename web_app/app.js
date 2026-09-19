@@ -1,9 +1,31 @@
+
 const express = require('express');
 const mysql = require('mysql2');
 const bodyParser = require('body-parser');
 const session = require('express-session');
+
+/**
+ * 统一哈希算法：生成 32-bit 安全正整数，完全兼容 Spark 的 abs(hash(col))
+ * @param {string} str 
+ * @returns {number} 32位以内的安全正整数
+ */
+function calcSafeHash(str) {
+    if (!str) return 0;
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash |= 0; // 转成 32bit 整数
+    }
+    return Math.abs(hash);
+}
+
+
+
 const app = express();
 const port = 3000;
+
+
 
 app.set('view engine', 'ejs');
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -16,9 +38,17 @@ app.use(session({
 }));
 
 const pool = mysql.createPool({
-    host: 'localhost', user: 'hadoop_master', password: 'hadoop',
-    database: 'music_rec_sys', waitForConnections: true, connectionLimit: 10, queueLimit: 0
+    host: '127.0.0.1',
+    user: 'hadoop_master',
+    password: 'hadoop',
+    database: 'music_rec_sys',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    supportBigNumbers: true,
+    bigNumberStrings: true
 });
+
 
 // 中间件
 function requireLogin(req, res, next) {
@@ -35,7 +65,14 @@ app.post('/login', (req, res) => {
     const { username, password } = req.body;
     pool.query('SELECT * FROM users WHERE username = ? AND password = ?', [username, password], (err, results) => {
         if (results && results.length > 0) {
-            req.session.user = results[0];
+            const userRow = results[0];
+            req.session.user = {
+                uid: userRow.uid,
+                username: userRow.username,
+                shadow_id: userRow.shadow_id,
+                // 数据库读出的bigint转字符串，防止BigInt序列化报错
+                stable_uid_hash: String(userRow.stable_uid_hash)
+            };
             res.redirect('/');
         } else {
             res.render('login', { error: '账号或密码错误' });
@@ -43,16 +80,29 @@ app.post('/login', (req, res) => {
     });
 });
 
+
+
 app.get('/register', (req, res) => res.render('register', { error: null }));
 app.post('/register', (req, res) => {
     const { username, password } = req.body;
     const shadowId = Math.floor(Math.random() * 2000) + 1;
-    pool.query('INSERT INTO users (username, password, shadow_id) VALUES (?, ?, ?)', [username, password, shadowId], (err, res2) => {
+    // =========【改动】计算stable_uid_hash =========
+    const stableUidHash = calcSafeHash(username);
+
+    // INSERT增加stable_uid_hash字段
+    pool.query('INSERT INTO users (username, password, shadow_id, stable_uid_hash) VALUES (?, ?, ?, ?)', [username, password, shadowId, stableUidHash], (err, res2) => {
         if(err) return res.render('register', {error: '用户名已存在'});
-        req.session.user = { uid: res2.insertId, username, shadow_id: shadowId };
+        // session保存stable_uid_hash，后面接口要用
+        req.session.user = { 
+            uid: res2.insertId, 
+            username, 
+            shadow_id: shadowId,
+            stable_uid_hash: stableUidHash   // 存入session
+        };
         res.redirect('/');
     });
 });
+
 
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); });
 
@@ -95,40 +145,161 @@ app.get('/playlist/:tag', requireLogin, (req, res) => {
 });
 
 
-
-// 每日推荐
+// ================= 阶段 3：实时在线重排推荐 =================
 app.get('/recommend', requireLogin, (req, res) => {
-    const refresh = req.query.refresh;
-    const targetId = req.session.user.shadow_id;
-    let orderBy = refresh === 'true' ? 'RAND()' : 'r.rank_score DESC';
-    const sql = `SELECT r.rank_score, s.* FROM recommendations r JOIN songs s ON r.song_id = s.song_id WHERE r.user_id = ? ORDER BY ${orderBy} LIMIT 20`;
-    pool.query(sql, [targetId], (err, results) => res.render('recommend', { songs: results }));
-});
-
-// 播放页 (这里不再自动插入 user_actions，改为前端触发)
-app.get('/player/:songId', requireLogin, (req, res) => {
-    const songId = req.params.songId;
     const uid = req.session.user.uid;
+    const targetStableHash = req.session.user.stable_uid_hash;
 
-    pool.query(`SELECT * FROM songs WHERE song_id = ?`, [songId], (err, result) => {
-        if (result.length === 0) return res.send("404 Not Found");
-        const song = result[0];
-        
-        // 并行查询：相似歌曲 + 当前用户是否喜欢过 + 当前用户的评论
-        const sqlSim = `SELECT s.*, rs.similarity_score FROM related_songs rs JOIN songs s ON rs.related_song_id = s.song_id WHERE rs.song_id = ? ORDER BY rs.similarity_score DESC LIMIT 10`;
-        const sqlIsLiked = `SELECT 1 FROM ephemeral_likes WHERE uid = ? AND song_id = ?`;
-        const sqlComments = `SELECT c.*, u.username FROM comments c JOIN users u ON c.uid = u.uid WHERE c.song_id = ? ORDER BY c.created_at DESC`;
+    // 1. 获取用户最近 3 次交互的歌曲（即时兴趣触发源）
+    const sqlRecent = `
+        SELECT song_id FROM user_actions 
+        WHERE uid = ? AND action_type IN ('play', 'like') 
+        ORDER BY created_at DESC LIMIT 3
+    `;
 
-        pool.query(sqlSim, [songId], (err, simSongs) => {
-            pool.query(sqlIsLiked, [uid, songId], (err, likeResult) => {
-                const isLiked = likeResult.length > 0;
-                pool.query(sqlComments, [songId], (err, comments) => {
-                    res.render('player', { song, simSongs, isLiked, comments });
+    pool.query(sqlRecent, [uid], (err, recentActions) => {
+        const recentSongIds = (recentActions || []).map(r => r.song_id);
+
+        // 2. 查询离线 ALS 生成的基线推荐 (Top 20)
+        const sqlOffline = `
+            SELECT r.rank_score, s.* 
+            FROM recommendations r 
+            JOIN songs s ON r.song_id = s.song_id 
+            WHERE r.stable_uid_hash = ? 
+            ORDER BY r.rank_score DESC LIMIT 20
+        `;
+
+        pool.query(sqlOffline, [targetStableHash], (err2, offlineSongs) => {
+            let baseList = offlineSongs || [];
+
+            // 兜底逻辑：无推荐时用热门填充
+            if (baseList.length === 0) {
+                return pool.query(`SELECT * FROM songs ORDER BY RAND() LIMIT 20`, (err3, hot) => {
+                    res.render('recommend', { songs: hot || [] });
                 });
+            }
+
+            // 3. 如果用户近期没有行为，直接返回离线基线
+            if (recentSongIds.length === 0) {
+                return res.render('recommend', { songs: baseList });
+            }
+
+            // 4. 实时召回：利用离线预计算的 related_songs 表进行实时 I2I 召回
+            const sqlRealtime = `
+                SELECT DISTINCT s.*, rs.similarity_score as rank_score
+                FROM related_songs rs
+                JOIN songs s ON rs.related_song_id = s.song_id
+                WHERE rs.song_id IN (?)
+                ORDER BY rs.similarity_score DESC
+                LIMIT 6
+            `;
+
+            pool.query(sqlRealtime, [recentSongIds], (err4, realtimeSongs) => {
+                if (err4 || !realtimeSongs || realtimeSongs.length === 0) {
+                    return res.render('recommend', { songs: baseList });
+                }
+
+                // 5. 在线混合打散重排 (Real-time Re-ranking)
+                // 将实时召回的 4~6 首歌插在推荐列表头部，并去除已听歌曲
+                const combined = [];
+                const seen = new Set(recentSongIds.map(String));
+
+                // 先放入实时召回的相似歌曲（体现即时响应）
+                for (let s of realtimeSongs) {
+                    if (!seen.has(String(s.song_id))) {
+                        seen.add(String(s.song_id));
+                        s.tag = "实时猜你喜欢"; // 页面标识
+                        combined.push(s);
+                    }
+                }
+
+                // 接着填充离线基线歌曲（保证长周期全局偏好）
+                for (let s of baseList) {
+                    if (!seen.has(String(s.song_id)) && combined.length < 20) {
+                        seen.add(String(s.song_id));
+                        combined.push(s);
+                    }
+                }
+
+                res.render('recommend', { songs: combined });
             });
         });
     });
 });
+
+// 播放页 (这里不再自动插入 user_actions，改为前端触发)
+
+// ================= 播放页 =================
+app.get('/player/:songId', requireLogin, (req, res) => {
+    const songId = req.params.songId;
+    const uid = req.session.user.uid;
+    
+    console.log("🎵 访问播放页:", songId);
+
+    pool.query(`SELECT * FROM songs WHERE song_id = ?`, [songId], (err, result) => {
+        if (err || result.length === 0) {
+            console.error("❌ 歌曲不存在:", songId);
+            return res.status(404).send("歌曲不存在");
+        }
+        
+        const song = result[0];
+        
+        // 查询相似歌曲
+        const sqlSim = `
+            SELECT DISTINCT s.*, rs.similarity_score 
+            FROM related_songs rs 
+            JOIN songs s ON rs.related_song_id = s.song_id 
+            WHERE rs.song_id = ? 
+            ORDER BY rs.similarity_score DESC 
+            LIMIT 10
+        `;
+        
+        pool.query(sqlSim, [songId], (err, simSongs) => {
+            // ✅ 兜底：查询失败或无结果时使用随机歌曲
+            if (err || !simSongs || simSongs.length === 0) {
+                console.warn("⚠️ 相似歌曲为空，使用热门兜底");
+                pool.query(
+                    `SELECT *, 0.5 as similarity_score FROM songs WHERE song_id != ? ORDER BY RAND() LIMIT 5`,
+                    [songId],
+                    (err2, fallback) => {
+                        renderPage(song, fallback || []);
+                    }
+                );
+                return;
+            }
+            renderPage(song, simSongs);
+        });
+        
+        function renderPage(song, simSongs) {
+            const sqlIsLiked = `SELECT 1 FROM ephemeral_likes WHERE uid = ? AND song_id = ?`;
+            const sqlComments = `
+                SELECT c.*, u.username 
+                FROM comments c 
+                JOIN users u ON c.uid = u.uid 
+                WHERE c.song_id = ? 
+                ORDER BY c.created_at DESC
+            `;
+            
+            pool.query(sqlIsLiked, [uid, songId], (err, likeResult) => {
+                const isLiked = likeResult && likeResult.length > 0;
+                
+                pool.query(sqlComments, [songId], (err, comments) => {
+                    if (err) comments = [];
+                    
+                    // ✅ 确保所有变量都传递
+                    res.render('player', {
+                        song,
+                        simSongs: simSongs || [],
+                        isLiked,
+                        comments: comments || [],
+                        user: req.session.user  // ✅ 关键：传递 user
+                    });
+                });
+            });
+        }
+    });
+});
+
 
 // 个人中心 (聚合查询) — 当前用户
 app.get('/profile', requireLogin, (req, res) => {
@@ -186,37 +357,74 @@ app.get('/profile/:username', requireLogin, (req, res) => {
     });
 });
 
+
 // ================= API 接口 (供前端 JS 调用) =================
-
-// 通用行为记录接口
 app.post('/api/log_action', requireLogin, (req, res) => {
-    const { songId, actionType, content } = req.body; // actionType: 'play', 'like', 'comment'
+    let { songId, actionType, content } = req.body; 
     const uid = req.session.user.uid;
-    const weight = actionType === 'play' ? 1 : (actionType === 'like' ? 3 : 5);
+    const stableUidHash = req.session.user.stable_uid_hash;
 
-    // 1. 写入 user_actions (用于Spark训练)
-    pool.query('INSERT INTO user_actions (uid, song_id, action_type, weight) VALUES (?, ?, ?, ?)', 
-        [uid, songId, actionType, weight]);
+    console.log(`[用户行为] uid=${uid}, songId=${songId}, action=${actionType}`);
 
-    // 2. 额外逻辑
-    if (actionType === 'like') {
-        // 喜欢：存入 ephemeral_likes，过期时间设为30天后
-        const expireDate = new Date();
-        expireDate.setDate(expireDate.getDate() + 30);
-        pool.query('INSERT IGNORE INTO ephemeral_likes (uid, song_id, expire_at) VALUES (?, ?, ?)', [uid, songId, expireDate]);
-        res.json({ success: true, msg: 'Liked' });
-    } else if (actionType === 'unlike') {
-        // 取消喜欢
-        pool.query('DELETE FROM ephemeral_likes WHERE uid = ? AND song_id = ?', [uid, songId]);
-        res.json({ success: true, msg: 'Unliked' });
-    } else if (actionType === 'comment') {
-        // 评论
-        pool.query('INSERT INTO comments (uid, song_id, content) VALUES (?, ?, ?)', [uid, songId, content]);
-        res.json({ success: true, msg: 'Commented' });
-    } else {
-        // 播放
-        res.json({ success: true, msg: 'Played logged' });
+    if (!songId) {
+        return res.status(400).json({ success: false, msg: "缺少 songId" });
     }
+
+    const weightMap = { 'play': 1, 'like': 3, 'comment': 5, 'unlike': 0 };
+    const weight = weightMap[actionType] !== undefined ? weightMap[actionType] : 1;
+
+    // 1. 写入 user_actions 表
+    const insertActionSql = `
+        INSERT INTO user_actions (uid, stable_uid_hash, song_id, action_type, weight) 
+        VALUES (?, ?, ?, ?, ?)
+    `;
+
+    pool.query(insertActionSql, [uid, stableUidHash, songId, actionType, weight], (err) => {
+        if (err) {
+            console.error("❌ 写入 user_actions 失败:", err.sqlMessage || err);
+            return res.status(500).json({ success: false, msg: "写入 user_actions 失败: " + (err.sqlMessage || "") });
+        }
+
+        // 2. 分流处理业务
+        if (actionType === 'like') {
+            const expireDate = new Date();
+            expireDate.setDate(expireDate.getDate() + 30);
+            pool.query('INSERT IGNORE INTO ephemeral_likes (uid, song_id, expire_at) VALUES (?, ?, ?)', 
+                [uid, songId, expireDate], (err2) => {
+                    if (err2) {
+                        console.error("❌ 写入 ephemeral_likes 失败:", err2.sqlMessage || err2);
+                        return res.status(500).json({ success: false, msg: err2.sqlMessage });
+                    }
+                    console.log(" 点赞成功");
+                    return res.json({ success: true, msg: 'Liked' });
+                }
+            );
+        } else if (actionType === 'unlike') {
+            pool.query('DELETE FROM ephemeral_likes WHERE uid = ? AND song_id = ?', 
+                [uid, songId], (err2) => {
+                    if (err2) {
+                        console.error("❌ 删除 ephemeral_likes 失败:", err2.sqlMessage || err2);
+                        return res.status(500).json({ success: false, msg: err2.sqlMessage });
+                    }
+                    console.log(" 取消点赞成功");
+                    return res.json({ success: true, msg: 'Unliked' });
+                }
+            );
+        } else if (actionType === 'comment') {
+            pool.query('INSERT INTO comments (uid, song_id, content) VALUES (?, ?, ?)', 
+                [uid, songId, content], (err2) => {
+                    if (err2) {
+                        console.error("❌ 写入 comments 失败:", err2.sqlMessage || err2);
+                        return res.status(500).json({ success: false, msg: err2.sqlMessage });
+                    }
+                    console.log(" 评论发布成功");
+                    return res.json({ success: true, msg: 'Commented' });
+                }
+            );
+        } else {
+            return res.json({ success: true, msg: 'Play recorded' });
+        }
+    });
 });
 
 // 设置是否公开歌单（用户控制）

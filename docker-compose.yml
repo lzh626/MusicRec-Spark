@@ -1,0 +1,25 @@
+version: "3.8"
+services:
+  music-rec-env:
+    build: 
+      context: ./docker
+    container_name: music-rec-container
+    ports:
+      - "9000:9000"
+      - "9870:9870" # HDFS Web UI
+      - "3000:3000" # Node.js Web App
+      - "3306:3306" # MySQL
+    volumes:
+      # 1. 实时代码挂载
+      - ./:/app
+      # 2. HDFS & MySQL 数据持久化卷
+      - hdfs-data:/usr/local/hadoop/data
+      - mysql-data:/var/lib/mysql
+      # 3. 宿主机备份数据挂载 (相对路径)
+      - ./host_backup:/host_backup
+    # 限制内存防止卡死
+    mem_limit: 8g
+
+volumes:
+  hdfs-data:
+  mysql-data:
