@@ -1,7 +1,37 @@
+# docker:
+*.tar
+*.tar.gz
+*.vhdx 
+
+# data files:
+data/
+*.csv
+*.parquet
+*.json
+!package.json
+!package-lock.json
+
+# ===== 排除模型和缓存 =====
+spark_engine/checkpoints/
+spark_engine/models/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# ===== 排除日志 =====
+*.log
+logs/
+
+# ===== 排除依赖 =====
 node_modules/
-*.jar
-data/raw/
-data/mini_data/
-data/processed/
-spark_tmp/
+venv/
+.venv/
+
+# ===== 排除 IDE =====
+.idea/
 .vscode/
+*.swp
+
+# ===== 排除系统文件 =====
+.DS_Store
+Thumbs.db

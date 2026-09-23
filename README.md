@@ -1,4 +1,4 @@
-
+### 补充一些正常运行的配置
 #### docker linux config
 - /usr/local/hadoop/etc/hadoop/ 
 core-site.xml:
@@ -59,60 +59,45 @@ export YARN_NODEMANAGER_USER=root
 
 ---
 
-MusicRecSystem
-├─ 📁.vscode
-├─ 📁data
-│  ├─ 📁etl
-│  │  └─ 📄etl_spotify.py
-│  ├─ 📁processed
-│  ├─ 📁processed_mini
-│  │  ├─ 📄spotify_interactions_mini.csv
-│  │  └─ 📄spotify_tracks_mini.csv
-│  ├─ 📁raw
-│  ├─ 📁sql
-│  │  ├─ 📄update_1.sql
-│  │  └─ 📄update_2.sql
-│  ├─ 📄shrink_data.py
-│  ├─ 📄spider_music163_1.py
-│  ├─ 📄spider_music163_2.py
-│  └─ 📄spider_state.txt
-├─ 📁docker
-│  ├─ 📄Dockerfile
-│  └─ 📄init.sh
-├─ 📁docker_linux_backup
-├─ 📁docs
-├─ 📁host_backup
-│  ├─ 📁netease
-│  │  ├─ 📄interactions_final.csv
-│  │  └─ 📄tracks_meta_final.csv
-│  ├─ 📁spotify
-│  │  ├─ 📄spotify_interactions_mini.csv
-│  │  └─ 📄spotify_tracks_mini.csv
-│  └─ 📄music_db_backup.sql
-├─ 📁spark_engine
-│  ├─ 📄incremental_update.py
-│  ├─ 📄previous_version_backup.py
-│  ├─ 📄train_fusion_optimized_final.py
-│  └─ 📄train_fusion_optimized_mini.py
-├─ 📁web_app
-│  ├─ 📁node_modules
-│  ├─ 📁views
-│  │  ├─ 📁.vscode
-│  │  ├─ 📄home.ejs
-│  │  ├─ 📄index.ejs
-│  │  ├─ 📄login.ejs
-│  │  ├─ 📄player.ejs
-│  │  ├─ 📄playlist.ejs
-│  │  ├─ 📄profile.ejs
-│  │  ├─ 📄recommend.ejs
-│  │  ├─ 📄register.ejs
-│  │  ├─ 📄similar.ejs
-│  │  └─ 📄temp.md
-│  ├─ 📄app.js
-│  ├─ 📄package-lock.json
-│  └─ 📄package.json
-├─ 📄.dockerignore
-├─ 📄.gitignore
-├─ 📄docker-compose.yml
-└─ 📄README.md
-```
+
+
+#### MusicRecSystem
+>   - 📁.vscode
+>   - 📁data
+>   - 📁docker
+>     - 📄Dockerfile
+>     - 📄init.sh
+>   - 📁docker_linux_backup
+>   - 📁docs
+>   - 📁host_backup
+>     - 📁netease
+>     - 📁spotify
+>     - 📄music_db_backup.sql
+>     - 📄music_db_bk_20260919.sql
+>   - 📁spark_engine
+>     - 📄incremental_update.py
+>     - 📄mysql-connector.jar
+>     - 📄previous_version_backup.py
+>     - 📄train_fusion_optimized_final.py
+>     - 📄train_fusion_optimized_mini.py
+>   - 📁web_app
+>     - 📁node_modules
+>     - 📁views
+>       - 📁.vscode
+>       - 📄home.ejs
+>       - 📄index.ejs
+>       - 📄login.ejs
+>       - 📄player.ejs
+>       - 📄playlist.ejs
+>       - 📄profile.ejs
+>       - 📄recommend.ejs
+>       - 📄register.ejs
+>       - 📄similar.ejs
+>       - 📄temp.md
+>     - 📄app.js
+>     - 📄package-lock.json
+>     - 📄package.json
+>   - 📄.dockerignore
+>   - 📄.gitignore
+>   - 📄docker-compose.yml
+>   - 📄README.md
