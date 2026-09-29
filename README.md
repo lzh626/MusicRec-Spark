@@ -112,12 +112,18 @@
 
 假设复现者已配置好 Linux/Windows 环境（Java, Hadoop, Spark, MySQL, Node.js）：
 
-> **流程概述**：
-> 首先运行 `data/` 下的爬虫和瘦身脚本获取原始数据 CSV；
-> 接着将生成的 CSV 文件上传至 HDFS 的对应目录（`/input/netease` 和 `/input/spotify`）；
-> 然后执行 SQL 脚本初始化 MySQL 业务表结构；
-> 随后提交 Spark 任务 `train_fusion_optimized.py` 进行离线计算，Spark 会自动清洗数据并将推荐结果和歌曲元数据写入 MySQL；
-> 最后进入 `web_app/` 目录安装依赖并启动 `node app.js`，即可在浏览器访问完整的推荐系统。
+ **流程概述**：
+- 获取元数据：
+  - spotify：获取原始数据 CSV: 根据自身配置，调整并运行瘦身shrink_data.py
+  - netease: 运行 `data/spider_2` 爬虫获取；
+
+- 接着将生成的 CSV 文件上传至 HDFS 的对应目录（`/input/netease` 和 `/input/spotify`）；
+
+- 然后执行 SQL 脚本初始化 MySQL 业务表结构；
+
+- 随后提交 Spark 任务 `train_fusion_optimized_mini.py` 进行离线计算，Spark 会自动清洗数据并将推荐结果和歌曲元数据写入 MySQL；
+
+- 最后进入 `web_app/` 目录安装依赖并启动 `node app.js`，即可在浏览器访问完整的推荐系统。
 
 ---
 
